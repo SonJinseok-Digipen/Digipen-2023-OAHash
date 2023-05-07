@@ -138,6 +138,9 @@
     <ClInclude Include="OAHashTable.h" />
     <ClInclude Include="Support.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="hashtable_psuedo_code.md" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

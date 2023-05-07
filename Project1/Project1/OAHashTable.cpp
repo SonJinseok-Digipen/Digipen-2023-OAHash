@@ -1,140 +1,223 @@
 #include"OAHashTable.h"
-#include"Support.h" 
 #include<cmath>
 template<typename T>
-OAHashTable<T>::OAHashTable(const OAHTConfig& Config):my_config(Config)
+ OAHashTable<T>::OAHashTable(const OAHTConfig& Config):my_config(Config)
 {
-    my_stats.Count_ = 0;
-    my_stats.Probes_ = 0;
-    my_stats.Expansions_ = 0;
-    my_stats.PrimaryHashFunc_ = my_config.PrimaryHashFunc_;
-    my_stats.SecondaryHashFunc_ = my_config.SecondaryHashFunc_;
-    my_stats.TableSize_ = GetClosestPrime(my_config.InitialTableSize_);
+	 my_stats.Count_ = 0;
+	 my_stats.Expansions_ = 0;
+	 my_stats.PrimaryHashFunc_ = my_config.PrimaryHashFunc_;
+	 my_stats.SecondaryHashFunc_ = my_config.SecondaryHashFunc_;
+	 my_stats.Probes_ = 0;
+	 my_stats.TableSize_ = 0;
 
-
-    my_slots=new OAHTSlot[my_stats.TableSize_];
-    if (my_stats.SecondaryHashFunc_ != nullptr)
-    {
-        my_delete_policy = OAHTDeletionPolicy::MARK;
-    }
+	 my_stats.TableSize_ = GetClosestPrime(my_config.InitialTableSize_);
+	 my_slots = new OAHTSlot[my_stats.TableSize_];
+	 if (my_config.SecondaryHashFunc_ != nullptr)
+	 {
+		 my_config.DeletionPolicy_ = OAHTDeletionPolicy::MARK;
+	 }
+	 InitTable();
 }
 
-template<typename T>
-void OAHashTable<T>::InitTable()
-{
-    for (unsigned int i = 0; i < my_stats.TableSize_; i++)
-    {
-        my_slots[i].State = OAHTSlot::OAHTSlot_State::UNOCCUPIED;
-    }
-    my_stats.Count_ = 0;
-}
+ template<typename T>
+ void OAHashTable<T>::InitTable()
+ {
+	 for (int i = 0; i < my_stats.TableSize_; i++)
+	 {
+		 my_slots[i].State = OAHTSlot::UNOCCUPIED;
+		
+	 }
+	 my_stats.Count_ = 0;
+ }
 
-
-
-//Destructor
-template<typename T>
-OAHashTable<T>::~OAHashTable()
-{
-    clear();
-    delete my_slots;
-
-}
-
-//Insert
-template<typename T>
-void OAHashTable<T>::insert([[maybe_unused]]const char *Key, [[maybe_unused]]const T& Data)
-{
+ template<typename T>
+ const T& OAHashTable<T>::find([[maybe_unused]]const char* Key) 
+ {
+	 OAHTSlot* slot;
+	 int current_index=IndexOf(Key, slot);
+	 if (current_index == -1)
+	 {
+		 throw OAHashTableException(OAHashTableException::OAHASHTABLE_EXCEPTION::E_ITEM_NOT_FOUND, "");
+	 }
+	 
+	 return my_slots[current_index].Data;
+	 
      
-}
-//remove
-template<typename T>
-void OAHashTable<T>::remove([[maybe_unused]]const char *Key)
-{
-    
-}
+ }
 
-template<typename T>
-void OAHashTable<T>::GrowTable()
-{
-    unsigned int new_table_size = std::ceil((my_stats.TableSize_ * my_config.GrowthFactor));
-    new_table_size = GetClosestPrime(table_size);
-    OHASlot* old_table = my_slot;
-    unsigned int old_table_size = my_stats.TableSize_;
-    my_slots = new OAHTSlot[table_size];
-    if (my_slot == nullptr)
-    {
-        throw OAHashTableException(OAHASHTABLE_EXCEPTION);
-    }
-    my_stats.TableSize_=new_table_size
-        for (unsigned int i = 0; i < my_stats.Tablesize_; i++)
-        {
-            insert
-        }
+ template<typename T>
+ void OAHashTable<T>::clear()
+ {
+	 if (my_config.FreeProc_ != nullptr)
+	 {
+		 for (int i = 0; i < my_stats.TableSize_; i++)
+		 {
+			 my_config.FreeProc_(my_slots[i].Data);
+		 }
+	 }
+ }
 
-}
+ template<typename T>
+ OAHashTable<T>::~OAHashTable()
+ {
+	 clear();
+	 delete[] my_slots;
+ }
 
-template<typename T>
-void OAHashTable<T>::calulate_load_factor()
-{
-    float current_load_factor;
-    int  current_use_element=0;
-    for (int i = 0; i < my_stats.TableSize_; i++)
-    {
-        if (my_slots[i].State == OAHTSlot::OAHTSlot_State::OCCUPIED)
-        {
-            current_use_element++;
+ template<typename T>
+ float OAHashTable<T>::CalCulate_LoadFactor() const
+ {
+	 int currrnet_use_item = 0;
+	 for (int i = 0; i < my_stats.TableSize_; i++)
+	 {
+		 if (my_slots[i].State == OAHTSlot::OCCUPIED)
+		 {
+			 currrnet_use_item++;
+		 }
+	 }
+	 return currrnet_use_item / my_stats.TableSize_;
+ }
 
-        }
-    }
-    current_load_factor = static_cast<float>(current_use_element) / current_load_factor;
-    return current_load_factor;
+ template<typename T>
+ OAHTStats OAHashTable<T>::GetStats()
+ {
+	 return my_stats;
+ }
 
-}
+ template<typename T>
+ const typename OAHashTable<T>::OAHTSlot* OAHashTable<T>::GetTable() const
+ {
+	 return my_slots;
+ }
+
+ template<typename T>
+ int OAHashTable<T>::IndexOf(const char* Key, OAHTSlot*& Slot)
+ {
+
+	 OAHTSlot* slot = nullptr;
+	 unsigned int index = my_stats.PrimaryHashFunc_(Key,my_stats.TableSize_);
+	 unsigned int start_index = index;
+	 unsigned int stride = 0;
+	 if (my_stats.SecondaryHashFunc_ != nullptr)
+	 {
+		 stride = 1 + my_stats.SecondaryHashFunc_(Key,my_stats.TableSize_ - 1);
+	 }
+	 else
+	 {
+		 stride = 1;
+	 }
+	 unsigned int slot_probe_count = 0;
+	 bool is_done = false;
+	 
+
+	 OAHTSlot* current=nullptr;
+
+	 
+	 
+	 while (is_done==false)
+	 {
+		 
+		 my_stats.Probes_++;
+		 slot_probe_count++;
+		 current = &my_slots[index];
+
+		 if ((current->State == OAHTSlot::DELETED) && slot == nullptr)
+		 {
+			 slot = current;
+		 }
+		 if (current->State == OAHTSlot::UNOCCUPIED)
+		 {
+			 if (slot == nullptr)
+			 {
+				 slot = current;
+			 }
+			 slot->probes = slot_probe_count;
+			 Slot = slot;
+			 return -1;
+		 }
+		 else if (current->State != OAHTSlot::DELETED)
+		 {
+			 if (strcmp(current->Key,Key)==0)
+			 {
+				 slot = current;
+				 slot->probes = slot_probe_count;
+				 Slot = slot;
+				 return index;
+			 }
+		 }
+		 
+		 index = index + stride;
+		 if (index >= my_stats.TableSize_)
+		 {
+			 index = 0;
+		 }
+		 if (index == start_index)
+		 {
+			 is_done = true;
+		 }
+	 }
+	 Slot = current;
+	 return -1;
 
 
 
 
-template<typename T>
-const T& OAHashTable<T>::find([[maybe_unused]]const char *Key) const
-{
-    
-}
+ }
 
 
-template<typename T>
-void OAHashTable<T>::clear()
-{
-  /*  if there is a free callback
-        for each OCCUPIED slot
-            free data
-            Initialize Table*/
-    if (my_config.FreeProc_ != nullptr)
-    {
-        for (int i = 0; i < my_stats.TableSize_; i++)
-        {
-            if (my_slots[i].State = OAHTSlot::OAHTSlot_State::OCCUPIED)
-            {
-                my_config.FreeProc_(my_slots[i].Data);
-            }
-        }
-    }
-    InitTable();
+ template<typename T>
+ void OAHashTable<T>::GrowTable()
+ {
+	 unsigned int new_size = std::ceil(my_stats.TableSize_ * my_config.GrowthFactor_);
+	 new_size = GetClosestPrime(new_size);
+	 OAHTSlot* old_slot = my_slots;
+	 unsigned int old_table_size = my_stats.TableSize_;
+	 my_slots = new OAHTSlot[new_size];
+	 if (my_slots == nullptr)
+	 {
+		 throw OAHashTableException(OAHashTableException::OAHASHTABLE_EXCEPTION::E_NO_MEMORY, "");
+	 }
+	 my_stats.TableSize_ = new_size;
+	 for(int i=0; i<my_stats.TableSize_; i++)
+	 {
+		 if (old_slot[i].State == OAHTSlot::OCCUPIED)
+		 {
+			 insert(old_slot[i].Key, old_slot[i].Data);
+		 }
+	 }
+	 delete[] old_slot;
+	 my_stats.Expansions_++;
+	
+	/* for each OCCUPIED slot in old table
+		 insert(current key, current value)
+		 delete old table
+		 update number of expansion*/
+ }
 
+ template<typename T>
+ void OAHashTable<T>::insert(const char* Key, const T& Data)
+ {
+	 float current_load_factor = CalCulate_LoadFactor();
+	 if (current_load_factor > my_config.MaxLoadFactor_ || my_stats.TableSize_ == my_stats.Count_)
+	 {
+		 GrowTable();
+	 }
+	 OAHTSlot* slot;
+	 int current_index = IndexOf(Key, slot);
+		/* if (current_index == -1)
+		 {
+			throw OAHashTableException(OAHashTableException::OAHASHTABLE_EXCEPTION::E_DUPLICATE, "");
+		 }*/
+		 slot->State = OAHTSlot::OCCUPIED;
+		 std::memcpy(slot->Key, Key, sizeof(char) * MAX_KEYLEN);
+		 slot->Data = Data;
+		
+		
+		 my_stats.Count_++;
+ }
 
-}
+ template<typename T>
+ void OAHashTable<T>::remove([[maybe_unused]]const char* Key)
+ {
 
-template<typename T>
-OAHTStats  OAHashTable<T>::GetStats() const
-{
-    return my_stats;
-}
-
-template<typename T>
-const typename  OAHashTable<T>::OAHTSlot* OAHashTable<T>::GetTable() const
-{
-    return my_slots;
-}
-
-
-
-
+ }

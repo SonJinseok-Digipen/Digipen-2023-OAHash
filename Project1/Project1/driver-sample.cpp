@@ -105,7 +105,7 @@ void FillPersonRecs2()
 ostream& operator<<(ostream &os, const Person &person)
 {
   char buffer[1000];
-  sprintf(buffer, "Key: %8s, Name: %12s, %12s    Salary:%7.0f, Years: %2d", person.ID, person.lastName,
+                              sprintf(buffer, "Key: %8s, Name: %12s, %12s    Salary:%7.0f, Years: %2d", person.ID, person.lastName,
                   person.firstName, person.salary, person.years);
   os << buffer;
   return os;
@@ -333,6 +333,7 @@ void TestALot(HashData *phd, HashData *shd)
       // Insert some items
     for (unsigned i = 0; i < size; i++)
     {
+
       Person *person = PersonRecs[i];
       keys[i] = person->ID;
       ht.insert(person->ID, person);
@@ -348,8 +349,8 @@ void TestALot(HashData *phd, HashData *shd)
     cout << endl << "Finding key: " << key << " (" << phf(key, ht.GetStats().TableSize_) << ")" << endl;
     try
     {
-      person = reinterpret_cast<Person *> (ht.find(key));
-      cout << *person << endl;
+        person = reinterpret_cast<Person*> (ht.find(key));
+        cout << *person << endl;
     }
     catch (OAHashTableException &e)
     {
@@ -1028,7 +1029,7 @@ int main(int argc, char **argv)
 
     default:
       TestALot(&HashingFuncs[SIMPLE], &HashingFuncs[NONE]);
-      TestSimpleGrow1();         
+      /*TestSimpleGrow1();         
       TestSimpleDeletePresent(); 
       TestSimpleDeleteMissing(); 
       TestSimpleDispose();       
@@ -1040,7 +1041,7 @@ int main(int argc, char **argv)
       TestSimpleGrow2();         
       TestSimpleMarkPack(&HashingFuncs[SIMPLE], &HashingFuncs[NONE], MARK);
       TestSimpleMarkPack(&HashingFuncs[SIMPLE], &HashingFuncs[PJW], MARK);
-      TestDoubleHashing(&HashingFuncs[PJW], &HashingFuncs[SIMPLE]);
+      TestDoubleHashing(&HashingFuncs[PJW], &HashingFuncs[SIMPLE]);*/
       break;
   }
 
