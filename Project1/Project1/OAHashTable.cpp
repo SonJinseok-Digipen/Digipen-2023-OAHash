@@ -55,6 +55,8 @@ template<typename T>
 			 my_config.FreeProc_(my_slots[i].Data);
 		 }
 	 }
+	 InitTable();
+	
  }
 
  template<typename T>
@@ -67,15 +69,17 @@ template<typename T>
  template<typename T>
  float OAHashTable<T>::CalCulate_LoadFactor() const
  {
-	 int currrnet_use_item = 0;
+	 float current_use_item = 0;
 	 for (int i = 0; i < my_stats.TableSize_; i++)
 	 {
 		 if (my_slots[i].State == OAHTSlot::OCCUPIED)
 		 {
-			 currrnet_use_item++;
+			 current_use_item++;
 		 }
 	 }
-	 return currrnet_use_item / my_stats.TableSize_;
+	 float current_load_factor = current_use_item / my_stats.TableSize_;
+	 float rounded_num = round(current_load_factor * 100) / 100.0;
+	 return rounded_num;
  }
 
  template<typename T>
@@ -175,10 +179,11 @@ template<typename T>
 	 my_slots = new OAHTSlot[new_size];
 	 if (my_slots == nullptr)
 	 {
-		 throw OAHashTableException(OAHashTableException::OAHASHTABLE_EXCEPTION::E_NO_MEMORY, "");
+		 throw OAHashTableException(OAHashTableException::OAHASHTABLE_EXCEPTION::E_NO_MEMORY, "Item not found in table.");
 	 }
 	 my_stats.TableSize_ = new_size;
-	 for(int i=0; i<my_stats.TableSize_; i++)
+	 InitTable();
+	 for(int i=0; i<old_table_size; i++)
 	 {
 		 if (old_slot[i].State == OAHTSlot::OCCUPIED)
 		 {
@@ -198,10 +203,13 @@ template<typename T>
  void OAHashTable<T>::insert(const char* Key, const T& Data)
  {
 	 float current_load_factor = CalCulate_LoadFactor();
-	 if (current_load_factor > my_config.MaxLoadFactor_ || my_stats.TableSize_ == my_stats.Count_)
+	 if ((current_load_factor >= my_config.MaxLoadFactor_) || (my_stats.TableSize_ == my_stats.Count_))
 	 {
 		 GrowTable();
+		 
+		 
 	 }
+
 	 OAHTSlot* slot;
 	 int current_index = IndexOf(Key, slot);
 		/* if (current_index == -1)
@@ -211,13 +219,53 @@ template<typename T>
 		 slot->State = OAHTSlot::OCCUPIED;
 		 std::memcpy(slot->Key, Key, sizeof(char) * MAX_KEYLEN);
 		 slot->Data = Data;
-		
-		
 		 my_stats.Count_++;
  }
 
  template<typename T>
  void OAHashTable<T>::remove([[maybe_unused]]const char* Key)
  {
+	 OAHTSlot* slot;
+	 int current_index = IndexOf(Key, slot);
+	 if (current_index == -1)
+	 {
+		 throw OAHashTableException(OAHashTableException::OAHASHTABLE_EXCEPTION::E_ITEM_NOT_FOUND, "Key not in table.");
+	 }
+	 my_stats.Count_--;
+	 if (my_config.FreeProc_ != nullptr)
+	 {
+		 my_config.FreeProc_(slot->Data);
+	 }
+	 if (my_config.DeletionPolicy_ == OAHTDeletionPolicy::MARK)
+	 {
+		 slot->State == OAHTSlot::DELETED;
+	 }
+	 else if(my_config.DeletionPolicy_ ==OAHTDeletionPolicy::PACK)
+	 {
+		 slot->State = OAHTSlot::UNOCCUPIED;
+		 unsigned int start_index = current_index;
+		 current_index++;
+		 if (current_index >= my_stats.TableSize_)
+		 {
+			 current_index = 0;
+			 
+		 }
+		 slot = &my_slots[current_index];
+		 while (slot->State == OAHTSlot::OCCUPIED && current_index != start_index)
+		 {
+			 slot->State = OAHTSlot::UNOCCUPIED;
+			 my_stats.Count_--;
+			 char current_key[MAX_KEYLEN];
+			 std::memcpy(current_key, slot->Key, sizeof(char) * MAX_KEYLEN);
+			 insert(current_key, slot->Data);
+			 current_index++;
+			 if (current_index >= my_stats.TableSize_)
+			 {
+				 current_index = 0;
 
+			 }
+			 slot = &my_slots[current_index];
+		 }
+		 
+	 }
  }
